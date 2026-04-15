@@ -1,5 +1,23 @@
 # Changelog — MADG MES Protótipo
 
+## [0.1.6] — 2026-04-15
+### Corrigido
+- Campos de horário trocados de `input type=time` para texto com máscara 24h (HH:MM)
+- Eliminado problema de AM/PM que causava cálculos errados de performance
+- Auto-inserção de ":" após 2 dígitos, validação 0-23h e 0-59min
+
+### Adicionado
+- Resumo de tempos calculados no formulário (total, programado, produtivo, qtd. teórica)
+- Alerta visual quando tempo total excede 16h (possível erro de digitação)
+- Máscara 24h aplicada nos formulários de ordem e paradas
+
+## [0.1.5] — 2026-04-15
+### Documentação
+- README.md com instruções completas de setup, estrutura e cálculos OEE
+- CHANGELOG.md com histórico de versões
+- Template `sql/nova-empresa.sql` para criar empresa com usuário e dados
+- CREDENCIAIS.md (local, fora do git) com todas as chaves e logins
+
 ## [0.1.4] — 2026-04-15
 ### Segurança
 - RLS com `FORCE ROW LEVEL SECURITY` em todas as tabelas
