@@ -2,7 +2,7 @@
 // Substituir pelos valores do seu projeto Supabase
 
 const SUPABASE_URL = 'https://twitebntywrlvtsigonb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_K8V4hJSkDKtwkGfXHmuP4Q_jZsSL4Fp';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aXRlYm50eXdybHZ0c2lnb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjY3NDAsImV4cCI6MjA5MTg0Mjc0MH0.v-Sfh75MayzkHISUvJvUCN477dGDkdKu2DW-uvIsGcM';
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
