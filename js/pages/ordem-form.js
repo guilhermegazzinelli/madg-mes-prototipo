@@ -67,12 +67,12 @@ async function renderOrdemForm(container, params = {}) {
 
         <div class="form-row">
           <div class="form-group">
-            <label>Hora Inicio</label>
-            <input type="time" class="form-control oee-input" name="hora_inicio" value="${ordem?.hora_inicio?.slice(0,5) || ''}">
+            <label>Hora Inicio (HH:MM)</label>
+            <input type="text" class="form-control oee-input time-24h" name="hora_inicio" value="${ordem?.hora_inicio?.slice(0,5) || ''}" placeholder="08:00" maxlength="5" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]">
           </div>
           <div class="form-group">
-            <label>Hora Fim</label>
-            <input type="time" class="form-control oee-input" name="hora_fim" value="${ordem?.hora_fim?.slice(0,5) || ''}">
+            <label>Hora Fim (HH:MM)</label>
+            <input type="text" class="form-control oee-input time-24h" name="hora_fim" value="${ordem?.hora_fim?.slice(0,5) || ''}" placeholder="17:00" maxlength="5" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]">
           </div>
         </div>
 
@@ -112,6 +112,9 @@ async function renderOrdemForm(container, params = {}) {
           <label>Observacao</label>
           <input type="text" class="form-control" name="observacao" value="${ordem?.observacao || ''}" placeholder="Opcional">
         </div>
+
+        <!-- Resumo de tempos calculados -->
+        <div id="oee-tempos" style="padding:10px 12px; background:var(--cinza-bg); border-radius:var(--radius); font-size:0.8rem; color:var(--cinza-text); margin-bottom:8px"></div>
 
         <!-- Painel OEE ao vivo -->
         <div class="oee-panel" id="oee-live">
@@ -191,6 +194,24 @@ async function renderOrdemForm(container, params = {}) {
       formData.velocidade_padrao = document.getElementById('velocidade-val').value;
       const r = OEE.calcular(formData);
 
+      // Mostrar tempos intermediarios para validacao
+      const temposEl = document.getElementById('oee-tempos');
+      if (formData.hora_inicio && formData.hora_fim) {
+        const vel = Number(formData.velocidade_padrao) || 0;
+        temposEl.innerHTML = `
+          <strong>Tempo total:</strong> ${OEE.minutesToDisplay(r.totalMin)}
+          &nbsp;|&nbsp; <strong>Programado:</strong> ${OEE.minutesToDisplay(r.tempoProgramado)}
+          &nbsp;|&nbsp; <strong>Produtivo:</strong> ${OEE.minutesToDisplay(r.tempoProdutivo)}
+          ${vel > 0 ? `&nbsp;|&nbsp; <strong>Qtd. teorica:</strong> ${OEE.num(r.qtdTeorica, 1)}` : ''}
+        `;
+        // Alerta se tempo total parecer errado (> 16h)
+        if (r.totalMin > 960) {
+          temposEl.innerHTML += `<br><span style="color:var(--vermelho)">⚠ Tempo total de ${OEE.minutesToDisplay(r.totalMin)} — verifique as horas</span>`;
+        }
+      } else {
+        temposEl.innerHTML = 'Preencha hora inicio e fim para ver o calculo';
+      }
+
       document.getElementById('oee-d').textContent = formData.hora_inicio && formData.hora_fim ? OEE.pct(r.disponibilidade) : '-';
       document.getElementById('oee-p').textContent = r.qtdTeorica > 0 ? OEE.pct(r.performance) : '-';
       document.getElementById('oee-q').textContent = r.producaoTotal > 0 ? OEE.pct(r.qualidade) : '-';
@@ -206,6 +227,21 @@ async function renderOrdemForm(container, params = {}) {
 
     form.querySelectorAll('.oee-input').forEach(input => {
       input.addEventListener('input', updateOEE);
+    });
+
+    // Mascara 24h nos campos de hora (auto-insere ":" apos 2 digitos)
+    form.querySelectorAll('.time-24h').forEach(input => {
+      input.addEventListener('input', (e) => {
+        let v = e.target.value.replace(/[^\d]/g, '');
+        if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2, 4);
+        if (v.length > 5) v = v.slice(0, 5);
+        // Validar hora 0-23 e minuto 0-59
+        const parts = v.split(':');
+        if (parts[0] && parseInt(parts[0]) > 23) v = '23' + (parts[1] !== undefined ? ':' + parts[1] : '');
+        if (parts[1] && parseInt(parts[1]) > 59) v = parts[0] + ':59';
+        e.target.value = v;
+        updateOEE();
+      });
     });
 
     // Init

@@ -89,12 +89,12 @@ function openParadaForm(ordemId, linhaId, motivos) {
   const { el, close } = UI.modal('Registrar Parada',
     `<div class="form-row">
       <div class="form-group">
-        <label>Hora Inicio</label>
-        <input type="time" class="form-control" id="par-inicio">
+        <label>Hora Inicio (HH:MM)</label>
+        <input type="text" class="form-control time-24h-modal" id="par-inicio" placeholder="08:00" maxlength="5" inputmode="numeric">
       </div>
       <div class="form-group">
-        <label>Hora Fim</label>
-        <input type="time" class="form-control" id="par-fim">
+        <label>Hora Fim (HH:MM)</label>
+        <input type="text" class="form-control time-24h-modal" id="par-fim" placeholder="08:30" maxlength="5" inputmode="numeric">
       </div>
     </div>
     <div class="form-group">
@@ -110,6 +110,19 @@ function openParadaForm(ordemId, linhaId, motivos) {
     `<button class="btn btn-outline btn-cancel">Cancelar</button>
      <button class="btn btn-primary btn-save">Salvar</button>`
   );
+
+  // Mascara 24h
+  el.querySelectorAll('.time-24h-modal').forEach(input => {
+    input.addEventListener('input', (e) => {
+      let v = e.target.value.replace(/[^\d]/g, '');
+      if (v.length >= 3) v = v.slice(0, 2) + ':' + v.slice(2, 4);
+      if (v.length > 5) v = v.slice(0, 5);
+      const parts = v.split(':');
+      if (parts[0] && parseInt(parts[0]) > 23) v = '23' + (parts[1] !== undefined ? ':' + parts[1] : '');
+      if (parts[1] && parseInt(parts[1]) > 59) v = parts[0] + ':59';
+      e.target.value = v;
+    });
+  });
 
   el.querySelector('.btn-cancel').addEventListener('click', close);
   el.querySelector('.btn-save').addEventListener('click', async () => {
