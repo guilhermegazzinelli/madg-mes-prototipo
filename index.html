@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MADG MES — Monitoramento OEE</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">MADG <span>MES</span></div>
+    <div class="header-right">Prototipo v1</div>
+  </header>
+
+  <!-- Sidebar (desktop) -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Principal</div>
+    <a href="#/dashboard">
+      <span class="icon">📊</span> Dashboard
+    </a>
+    <a href="#/ordens">
+      <span class="icon">📋</span> Ordens
+    </a>
+    <a href="#/ordens/new">
+      <span class="icon">➕</span> Nova Ordem
+    </a>
+
+    <div class="sidebar-section">Cadastros</div>
+    <a href="#/cadastros/unidades">
+      <span class="icon">🏭</span> Unidades
+    </a>
+    <a href="#/cadastros/linhas">
+      <span class="icon">⚙️</span> Linhas
+    </a>
+    <a href="#/cadastros/produtos">
+      <span class="icon">📦</span> Produtos
+    </a>
+    <a href="#/cadastros/taxas">
+      <span class="icon">⚡</span> Taxas Producao
+    </a>
+    <a href="#/cadastros/motivos">
+      <span class="icon">🔧</span> Motivos Parada
+    </a>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main" id="main-content">
+    <div class="loading"><div class="spinner"></div></div>
+  </main>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav">
+    <a href="#/dashboard">
+      <span class="icon">📊</span>
+      Dashboard
+    </a>
+    <a href="#/ordens">
+      <span class="icon">📋</span>
+      Ordens
+    </a>
+    <a href="#/ordens/new">
+      <span class="icon">➕</span>
+      Nova
+    </a>
+    <a href="javascript:void(0)" class="bottom-nav-cadastros">
+      <span class="icon">⚙️</span>
+      Cadastros
+    </a>
+  </nav>
+
+  <!-- Mobile cadastros submenu -->
+  <div id="cadastros-submenu" class="hidden" style="
+    position:fixed; bottom:var(--bottom-nav-height); right:0; left:0;
+    background:var(--branco); border-top:1px solid var(--cinza-border);
+    box-shadow:0 -4px 16px rgba(0,0,0,0.1); z-index:99;
+    display:flex; flex-wrap:wrap; gap:8px; padding:12px 16px;
+  ">
+    <a href="#/cadastros/unidades" class="btn btn-sm btn-outline">🏭 Unidades</a>
+    <a href="#/cadastros/linhas" class="btn btn-sm btn-outline">⚙️ Linhas</a>
+    <a href="#/cadastros/produtos" class="btn btn-sm btn-outline">📦 Produtos</a>
+    <a href="#/cadastros/taxas" class="btn btn-sm btn-outline">⚡ Taxas</a>
+    <a href="#/cadastros/motivos" class="btn btn-sm btn-outline">🔧 Motivos</a>
+  </div>
+
+  <!-- Supabase JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- App scripts -->
+  <script src="js/supabase.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/pages/dashboard.js"></script>
+  <script src="js/pages/unidades.js"></script>
+  <script src="js/pages/linhas.js"></script>
+  <script src="js/pages/produtos.js"></script>
+  <script src="js/pages/taxas.js"></script>
+  <script src="js/pages/motivos.js"></script>
+  <script src="js/pages/ordens.js"></script>
+  <script src="js/pages/ordem-form.js"></script>
+  <script src="js/pages/paradas.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
