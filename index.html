@@ -43,6 +43,15 @@
     <a href="#/cadastros/motivos">
       <span class="icon">🔧</span> Motivos Parada
     </a>
+
+    <!-- Itens visiveis apenas para super_admin (exibidos via JS em supabase.js) -->
+    <div class="sidebar-section super-admin-only" style="display:none">Administracao</div>
+    <a href="#/admin/empresas" class="super-admin-only" style="display:none">
+      <span class="icon">🏢</span> Empresas
+    </a>
+    <a href="#/admin/usuarios" class="super-admin-only" style="display:none">
+      <span class="icon">👥</span> Usuarios
+    </a>
   </nav>
 
   <!-- Main content -->
@@ -101,6 +110,8 @@
   <script src="js/pages/ordens.js"></script>
   <script src="js/pages/ordem-form.js"></script>
   <script src="js/pages/paradas.js"></script>
+  <script src="js/pages/admin-empresas.js"></script>
+  <script src="js/pages/admin-usuarios.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

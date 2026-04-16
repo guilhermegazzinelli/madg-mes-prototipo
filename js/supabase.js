@@ -9,6 +9,8 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Estado global do usuario
 let currentUser = null;
 let currentEmpresaId = null;
+let isSuperAdmin = false;
+let currentEmpresaNome = null;
 
 /**
  * Inicializa auth: verifica sessao existente e escuta mudancas
@@ -29,24 +31,47 @@ async function initAuth() {
     } else if (event === 'SIGNED_OUT') {
       currentUser = null;
       currentEmpresaId = null;
+      isSuperAdmin = false;
+      currentEmpresaNome = null;
       showLogin();
     }
   });
 }
 
 /**
- * Carrega o contexto do usuario (empresa vinculada)
+ * Carrega o contexto do usuario (empresa vinculada + flag de super_admin)
  */
 async function setUserContext(user) {
   currentUser = user;
 
+  // 1. Verificar se e super_admin
+  const { data: saRow } = await db
+    .from('super_admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  isSuperAdmin = !!saRow;
+
+  // 2. Buscar vinculo normal (pode nao existir para super_admin)
   const { data: vinculo } = await db
     .from('user_empresa')
     .select('empresa_id, papel, empresa(nome)')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (!vinculo) {
+  // 3. Super_admin: buscar contexto de empresa selecionada
+  let contextoSuper = null;
+  if (isSuperAdmin) {
+    const { data: ctx } = await db
+      .from('super_admin_context')
+      .select('selected_empresa_id, empresa:selected_empresa_id(nome)')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (ctx?.selected_empresa_id) contextoSuper = ctx;
+  }
+
+  // 4. Usuario normal sem vinculo e nao-super_admin → bloquear
+  if (!vinculo && !isSuperAdmin) {
     document.getElementById('main-content').innerHTML = `
       <div class="empty-state">
         <div class="icon">🔒</div>
@@ -59,18 +84,57 @@ async function setUserContext(user) {
     return;
   }
 
-  currentEmpresaId = vinculo.empresa_id;
-
-  // Atualizar header com nome da empresa
-  const headerRight = document.querySelector('.header-right');
-  if (headerRight) {
-    headerRight.innerHTML = `${vinculo.empresa?.nome || ''} <button class="btn btn-sm" style="margin-left:8px;color:var(--branco);border:1px solid rgba(255,255,255,0.3);padding:4px 10px" onclick="doLogout()">Sair</button>`;
+  // 5. Definir contexto de empresa (prioridade: contexto super_admin > vinculo normal)
+  if (contextoSuper) {
+    currentEmpresaId = contextoSuper.selected_empresa_id;
+    currentEmpresaNome = contextoSuper.empresa?.nome || null;
+  } else if (vinculo) {
+    currentEmpresaId = vinculo.empresa_id;
+    currentEmpresaNome = vinculo.empresa?.nome || null;
+  } else {
+    currentEmpresaId = null;
+    currentEmpresaNome = null;
   }
 
-  // Mostrar navegacao e iniciar router
+  // 6. Atualizar header
+  const headerRight = document.querySelector('.header-right');
+  if (headerRight) {
+    const badgeSuper = isSuperAdmin
+      ? '<span style="background:var(--laranja);color:#fff;font-size:0.7rem;padding:2px 8px;border-radius:4px;margin-right:8px">SUPER ADMIN</span>'
+      : '';
+    const contextoLabel = currentEmpresaNome
+      ? currentEmpresaNome + (isSuperAdmin ? ' <small style="opacity:0.8">(contexto)</small>' : '')
+      : (isSuperAdmin ? '<small style="opacity:0.8">sem contexto</small>' : '');
+    headerRight.innerHTML = `${badgeSuper}${contextoLabel} <button class="btn btn-sm" style="margin-left:8px;color:var(--branco);border:1px solid rgba(255,255,255,0.3);padding:4px 10px" onclick="doLogout()">Sair</button>`;
+  }
+
+  // 7. Exibir itens de menu super_admin se aplicavel
+  document.querySelectorAll('.super-admin-only').forEach(el => {
+    el.style.display = isSuperAdmin ? '' : 'none';
+  });
+
+  // 8. Mostrar navegacao e iniciar router
   document.querySelector('.sidebar').style.display = '';
   document.querySelector('.bottom-nav').style.display = '';
+
+  // Super_admin sem contexto → forcar painel de empresas
+  if (isSuperAdmin && !currentEmpresaId && (!location.hash || !location.hash.startsWith('#/admin/'))) {
+    location.hash = '#/admin/empresas';
+  }
+
   Router.init();
+}
+
+/**
+ * Super admin: troca o contexto de empresa via RPC
+ */
+async function selecionarEmpresa(empresaId) {
+  const { error } = await db.rpc('rpc_admin_selecionar_empresa', { p_empresa_id: empresaId });
+  if (error) { UI.toast('Erro ao trocar contexto: ' + error.message, 'error'); return false; }
+  // Recarrega contexto e redireciona para dashboard
+  await setUserContext(currentUser);
+  location.hash = empresaId ? '#/dashboard' : '#/admin/empresas';
+  return true;
 }
 
 /**

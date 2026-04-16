@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   Router.add('/cadastros/taxas', renderTaxas);
   Router.add('/cadastros/motivos', renderMotivos);
 
+  // Super Admin (visibilidade do menu controlada por supabase.js)
+  Router.add('/admin/empresas', renderAdminEmpresas);
+  Router.add('/admin/usuarios', renderAdminUsuarios);
+
   // Iniciar autenticacao (router inicia apos login)
   initAuth();
 
