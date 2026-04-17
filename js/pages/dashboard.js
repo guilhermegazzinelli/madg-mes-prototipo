@@ -12,6 +12,7 @@ async function renderDashboard(container) {
       <div class="flex gap-1 items-center" style="flex-wrap:wrap">
         <input type="date" class="form-control" id="dash-data" value="${hoje}" style="width:auto">
         <button class="btn btn-sm btn-outline" id="btn-hoje">Hoje</button>
+        <a href="#/dashboard/paradas" class="btn btn-sm btn-outline">⏱ Analise de Paradas</a>
         <a href="#/ordens/new" class="btn btn-sm btn-warning">+ Nova Ordem</a>
       </div>
     </div>

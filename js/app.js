@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Registrar rotas
   Router.add('/dashboard', renderDashboard);
+  Router.add('/dashboard/paradas', renderDashboardParadas);
   Router.add('/ordens', renderOrdens);
   Router.add('/ordens/new', renderOrdemForm);
   Router.add('/ordens/:id', renderOrdemForm);

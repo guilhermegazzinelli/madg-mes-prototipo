@@ -188,6 +188,22 @@ body {
   margin-bottom: 12px;
 }
 
+/* Container uniforme para graficos ApexCharts */
+.chart-card {
+  background: var(--branco);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px 16px;
+  margin-bottom: 16px;
+  min-height: 320px;
+}
+.chart-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 /* Stats cards row */
 .stats-row {
   display: grid;
