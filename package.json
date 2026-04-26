@@ -3,6 +3,7 @@
   "version": "0.1.6",
   "private": true,
   "description": "MADG MES — Sistema de monitoramento OEE para indústria",
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -13,6 +14,10 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@supabase/supabase-js": "^2.104.1",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "write-excel-file": "^4.0.2"
+  },
+  "dependencies": {
+    "read-excel-file": "^9.0.6"
   }
 }

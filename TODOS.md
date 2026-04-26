@@ -35,6 +35,39 @@ Helper isSupabaseRunning() endurecido — probe duplo (auth health + REST contra
 
 vitest.config.js: `fileParallelism: false` pra evitar race entre arquivos super-admin (todos compartilham 1 super-admin user no seed).
 
+### Item 8a — Importer Excel→Supabase (scripts/import-loi.js)
+
+**Status: DONE** (2026-04-26, branch `feature/importer-loi`)
+
+Script Node.js (~470 linhas) que recebe `.xlsx` multi-sheet e popula Supabase via service_role. Substitui o caminho legacy de `sql/nova-empresa.sql` (substituir placeholders manualmente no SQL Editor).
+
+**Stack:** `read-excel-file` (runtime) + `write-excel-file` (dev only, gera fixture). Zero npm vulnerabilities (`xlsx` original tinha 2 high severity sem fix). package.json ganhou `"type": "module"`.
+
+**8 sheets** (uma por entidade): empresa, unidades, linhas, produtos, taxas, motivos, turnos, user.
+
+**Two-phase architecture**:
+- Phase 1: parse + validate ALL (relata TODOS os erros num run só, operador conserta de uma vez)
+- Phase 2: INSERT em ordem topológica (empresa → unidades → linhas → produtos → motivos → taxas → turnos → user)
+- Falha mid-INSERT dispara `deleteEmpresaCascade()` automaticamente — empresa parcial é removida, banco volta intocado
+
+**Idempotência:** fresh-only por default (re-run aborta com `EmpresaJaImportadaError`). Flag `--replace` apaga empresa existente em ordem topológica reversa antes de reimportar.
+
+**Auth:** env vars `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`. Sem flags CLI (não vaza pra shell history).
+
+**Fixture:** `data/loi-sample.xlsx` (~9KB, 8 sheets baseadas em `sql/exemplo-haoma.sql`). Gerado uma vez via `node scripts/generate-sample-xlsx.js`. Operadores duplicam pro próximo cliente.
+
+**Tests:** 13 cases em `test/import-loi.test.js` cobrindo as 5 categorias de erro do TODO-1:
+- (a) MissingColumnError — header mal formatado
+- (b) InvalidCellTypeError — tipo errado, enum fora de lista, time não-HH:MM
+- (c) ForeignKeyViolationError — refs entre sheets
+- (d) UniqueConstraintError — duplicata simples e composta
+- (e) Network/Supabase errors — documentados no header do importer; testáveis manualmente (precisaria mock pra unit-test)
+
+**Smoke test manual (validado):**
+1. `import-loi.js sample.xlsx` → HAOMA criada com 1 unidade, 2 linhas, 8 produtos, 8 motivos, 8 taxas, 3 turnos, 1 user
+2. Re-run sem flag → aborta com `EmpresaJaImportadaError`
+3. Re-run com `--replace` → cascade-delete + reimport limpo
+
 ### Item 1d — Playwright happy-path E2E
 
 **Status: DONE** (2026-04-26, branch `feature/playwright-e2e`)
@@ -82,24 +115,30 @@ Local: 24/24 verde em 12.3s. CI nao roda Playwright (sem Supabase local) — vit
 
 ### TODO-1 — Error & rescue table formal do importer Excel→SQL
 
-**What:** Documentar tabela de erros do `Prototipo/scripts/import-loi.js` no estilo "exception class → rescued? → user message". Cobre: (a) Excel mal formatado (cabeçalho diff), (b) tipo de célula errado, (c) FK quebrada (produto referenciado em taxa não existe), (d) violação de UNIQUE, (e) erro de network/Supabase mid-import.
+**Status: DONE** (2026-04-26 — entregue junto com Item 8a)
 
-**Why:** Importer roda contra dados do cliente (LOI). Se falhar silenciosamente ou com mensagem confusa, founder fica preso debugando em produção sob pressão. Importer É a primeira interação real do cliente com o sistema.
+**Tabela formalizada no header de `scripts/import-loi.js`** (linhas 24-37):
 
-**Pros:**
-- Catch-all de erros previsíveis antes de ir pra cliente
-- Runbook fica auto-documentado para próxima migração
-- Reduz "founder na frente do cliente debugando ao vivo"
+| exception class | rescued? | mensagem ao operador |
+|---|---|---|
+| FileNotFoundError | no | "Arquivo nao encontrado: <path>" |
+| MissingSheetError | no | "Sheet '<nome>' faltando no arquivo" |
+| MissingColumnError | no | "Sheet '<sheet>' faltando coluna '<col>'" |
+| InvalidCellTypeError | no | "Sheet '<sheet>' linha <N> coluna '<col>': esperado <tipo>, recebeu <valor>" |
+| InvalidEnumValueError | no | "Sheet '<sheet>' linha <N> coluna '<col>': valor '<v>' nao permitido. Use: <opts>" |
+| ForeignKeyViolationError | no | "Sheet '<sheet>' linha <N>: refere '<chave>' que nao existe em <tabela_pai>" |
+| UniqueConstraintError | no | "Sheet '<sheet>' linha <N>: '<chave>' duplicado (ja' aparece na linha <M>)" |
+| EmpresaJaImportadaError | no | "Empresa '<nome>' ja existe. Use --replace pra apagar e reimportar." |
+| SupabaseConnectionError | no | "Falha ao conectar Supabase: <detalhe>" |
+| SupabaseInsertError | **yes** (auto-cleanup) | "INSERT falhou em <tabela>: <detalhe>. Banco revertido." |
 
-**Cons:**
-- 2-3h de drafting + alinhamento
-- Pode parecer over-engineering para script único do v1
+**Validation reporta TODOS os erros de uma vez** — operador conserta tudo num pass, não precisa "rodar→consertar→rodar→consertar" linha por linha.
 
-**Context:** Item 8a do design doc (importer escopo travado, "no auto-inferência"). Plano atual rejeita Excel mal-mapeado mas não documenta exception classes formalmente. Eng review (Section 2 Error & Rescue Map) cobriu audit_log triggers mas não importer.
+**Auto-cleanup em SupabaseInsertError** — wrapper externo detecta `err.partialEmpresaId` e chama `deleteEmpresaCascade()`. Falhas mid-INSERT deixam banco intocado do ponto de vista do operador.
 
-**Effort estimate:** S (human team ~3h) → CC+gstack ~30min  
-**Priority:** P2  
-**Depends on:** Item 8a implementado (importer existe pra mapear erros).
+**Tests:** 13 cases em `test/import-loi.test.js` cobrindo categorias (a)-(d) com fixtures sintéticos (sem DB). Categoria (e) documentada no header e validada via smoke run manual.
+
+**Completed:** 2026-04-26 (mesmo PR que Item 8a).
 
 ---
 
