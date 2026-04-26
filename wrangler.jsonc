@@ -1,0 +1,18 @@
+// MADG MES — Cloudflare Workers (assets-only) deploy config.
+//
+// Esse projeto e' um SPA estatico puro (vanilla HTML/CSS/JS, sem ES modules).
+// O CF dashboard configurou o deploy command como `npx wrangler versions upload`
+// — aqui declaramos onde estao os assets publicaveis.
+//
+// IMPORTANTE: somente public/ vai pro Workers Assets. Tudo fora de public/
+// (package.json, supabase/, sql/, test/, TODOS.md, CREDENCIAIS.md, README.md,
+// node_modules, etc.) NAO e' incluido no upload — fail-safe contra leak.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "madg-mes-prototipo",
+  "compatibility_date": "2026-04-26",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  }
+}

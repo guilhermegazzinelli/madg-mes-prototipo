@@ -1,0 +1,194 @@
+# MADG MES — TODOS
+
+Pendências capturadas durante sessions de office-hours / eng-review / ceo-review / design-review (2026-04-25).
+Itens sem prioridade-explicita assumem P3 (nice-to-have).
+
+---
+
+## P2 (importante, mas não bloqueia v1)
+
+### TODO-1 — Error & rescue table formal do importer Excel→SQL
+
+**What:** Documentar tabela de erros do `Prototipo/scripts/import-loi.js` no estilo "exception class → rescued? → user message". Cobre: (a) Excel mal formatado (cabeçalho diff), (b) tipo de célula errado, (c) FK quebrada (produto referenciado em taxa não existe), (d) violação de UNIQUE, (e) erro de network/Supabase mid-import.
+
+**Why:** Importer roda contra dados do cliente (LOI). Se falhar silenciosamente ou com mensagem confusa, founder fica preso debugando em produção sob pressão. Importer É a primeira interação real do cliente com o sistema.
+
+**Pros:**
+- Catch-all de erros previsíveis antes de ir pra cliente
+- Runbook fica auto-documentado para próxima migração
+- Reduz "founder na frente do cliente debugando ao vivo"
+
+**Cons:**
+- 2-3h de drafting + alinhamento
+- Pode parecer over-engineering para script único do v1
+
+**Context:** Item 8a do design doc (importer escopo travado, "no auto-inferência"). Plano atual rejeita Excel mal-mapeado mas não documenta exception classes formalmente. Eng review (Section 2 Error & Rescue Map) cobriu audit_log triggers mas não importer.
+
+**Effort estimate:** S (human team ~3h) → CC+gstack ~30min  
+**Priority:** P2  
+**Depends on:** Item 8a implementado (importer existe pra mapear erros).
+
+---
+
+## P3 (nice-to-have, claramente diferível)
+
+### TODO-2 — Interaction edge cases UI completo
+
+**What:** Mapa de interaction edge cases para o user journey "operador apontando ordem" e "founder importando dados do LOI". Cobrir: double-click submit, navegar away mid-action, slow connection, stale state, back button, retry while in-flight, sessão expirada mid-formulário.
+
+**Why:** Em produção real, usuários quebram fluxos felizes. Plano atual cobre apontamento via cross-tenant test e CRUD refactor, mas não mapeou explicitamente as edge cases de interação. Cliente B2B vai bater nessas no 1º mês.
+
+**Pros:**
+- Pega bugs que aparecem só em uso real
+- Reduz ticket support do cliente "isso travou"
+- Builds trust com primeiro cliente
+
+**Cons:**
+- Trabalho contínuo (não é one-shot)
+- Plano atual já tem cross-tenant test cobrindo segurança, edge cases de UX são camada acima
+
+**Context:** Section 4 do skill plan-eng-review (Data Flow & Interaction Edge Cases) ficou parcialmente coberto. CEO review marcou como P3 — não bloqueia v1 mas é dívida UX.
+
+**Effort estimate:** M (human team ~2 dias) → CC+gstack ~2-3h  
+**Priority:** P3  
+**Depends on:** v1 em produção (sem dados reais, edge cases são teóricos).
+
+---
+
+### TODO-3 — Operational dashboard externo (cliente vê)
+
+**What:** Página pública (estilo `status.madgmes.com.br`) onde TI do cliente consegue ver: uptime últimos 30 dias, incidentes históricos, manutenções agendadas. Pode ser página estática gerada via UptimeRobot embed + comunicação de incidente manual via WhatsApp.
+
+**Why:** Cliente B2B sério (TI rigorosa) pergunta "como vou saber se vocês estão operacionais?" Resposta atual: "vamos te avisar". Resposta melhor: URL público que mostra histórico.
+
+**Pros:**
+- Sinal de profissionalismo importante na hora de fechar contrato
+- Reduz perguntas de "vocês caíram?" via WhatsApp
+- Stack: Statuspage.io grátis ou simples HTML/Cloudflare
+
+**Cons:**
+- Não tem ROI até o 2º-3º cliente
+- Manter atualizado durante incidentes é trabalho
+
+**Context:** Section 8 (Observability) do plan-eng-review cobriu monitoring interno (UptimeRobot, Sentry, logs). Não cobriu dashboard externo para cliente.
+
+**Effort estimate:** S (human team ~1 dia) → CC+gstack ~1-2h  
+**Priority:** P3  
+**Depends on:** None — pode ser feito em paralelo com onboarding LOI.
+
+---
+
+### TODO-4 — Feature flag strategy
+
+**What:** Definir biblioteca/padrão pra feature flags (Cloudflare Workers + KV? PostgreSQL config table? Supabase RLS via flag column?). Aplicável quando lançar audit_log triggers em produção (deploy faseado: empresa-piloto antes de empresa-real).
+
+**Why:** Hoje deploy é all-or-nothing. Quando ativar audit log no LOI, se trigger tiver bug de performance (>3x baseline), founder não tem switch pra desligar sem rollback de migration. Feature flag dá esse safety.
+
+**Pros:**
+- Reduz blast radius de mudanças cross-cutting
+- Permite A/B test entre clientes futuros
+- Standard B2B SaaS
+
+**Cons:**
+- Adiciona camada que não tem ROI no v1 com 1 cliente
+- Pode levar a "scope creep" via flags abandonadas
+
+**Context:** Section 9 (Deployment & Rollout) do plan-eng-review cobriu CI/CD + rollback via git tag, mas não feature flags. Pra v1 com 1 cliente o risco é gerenciável (rollback manual). Pra v1.1 com 2-3 clientes vira mais importante.
+
+**Effort estimate:** M (human team ~1 semana) → CC+gstack ~6-10h  
+**Priority:** P3  
+**Depends on:** v1.1 (segundo cliente em produção).
+
+---
+
+## Itens já decididos no design doc (referência)
+
+Coisas que **NÃO** vão pra TODOS porque já estão no design doc como decisões explícitas:
+
+- Rails v2 — decisão pós-LOI Gate 1 (live ≥2 semanas)
+- Multi-role granular — Gate 2 (3 clientes pagantes)
+- Invite flow — Gate 2 quando atrito de onboarding for real
+- Super-admin UI já existe (descoberta na eng review)
+- Self-host opção comercial — Gate 3 (5+ clientes ARR R$100k+)
+- Integração Totvs — Gate 2 quando virar diferencial de venda
+
+---
+
+*Lista vivente. Atualizar quando decisões forem feitas ou items novos emergirem.*
+
+---
+
+## Adicionados pelo /plan-design-review (2026-04-25)
+
+### TODO-5 — Habilitar Playwright `toHaveScreenshot()` no Item 1d (P2)
+
+**What:** Item 1d (Playwright happy-path tests) já cobre 11 CRUDs funcionalmente. Adicionar snapshot mode (`toHaveScreenshot()`) em cada spec pra capturar baseline visual ANTES do D7 refactor e validar pixel-diff DEPOIS.
+
+**Why:** D7 CRUD refactor extrai 11 páginas para `js/crud.js` helper. Risco máximo é regressão visual sub-pixel (espaçamentos, tamanhos, ordem de elementos) que passam funcional mas mudam UX. Snapshot mode pega isso automaticamente.
+
+**Pros:**
+- Detecta visual regression que humano não pega em 2-3h de smoke
+- Threshold padrão 0.2% pixel-diff é razoável
+- Snapshots ficam versionados em `Prototipo/test/__snapshots__/`
+
+**Cons:**
+- +1-2h CC para configurar (precisa baseline ANTES do refactor)
+- Snapshots quebram se design system mudar (mas isso é feature, não bug)
+- Aumenta CI time em ~30s por spec
+
+**Context:** Item 1d original foi adicionado pelo OV1 da eng review. Snapshot mode é refinamento natural pra cobrir o caso de "pixel mudou mesmo dom funcionando."
+
+**Effort estimate:** S (human ~3h) → CC+gstack ~1-2h  
+**Priority:** P2  
+**Depends on:** Item 1d implementado (Playwright suite criada).
+
+---
+
+### TODO-6 — Criar DESIGN.md formal pós-LOI (P3)
+
+**What:** Sistema de design vive hoje implícito em `css/styles.css` (CSS variables: `--azul`, `--laranja`, `--radius`, etc). Formalizar em `DESIGN.md` com: paleta + uso, tipografia + escala, espaçamento + grid, componentes + estados (button, badge, table, modal, form, card), padrões de motion, breakpoints responsive.
+
+**Why:** Hoje protótipo tem AI-slop tells: (a) emoji como ícones de navegação, (b) `-apple-system` como font primária ("desisti de tipografia"), (c) componentes sem documentação central. Pra escalar past 1º cliente + atrair contribuidores + permitir future redesign sem regressão, DESIGN.md vira ancora.
+
+**Pros:**
+- Permite onboarding de designer/dev futuro sem caçar CSS variables
+- Identifica explicitamente AI-slop pra remover (ou aceitar) consciente
+- Pre-requisito pra qualquer rewrite/redesign futuro
+- Reduz "isso aqui é diferente daquilo ali" durante implementação
+
+**Cons:**
+- Plano atual preserva visual existente; DESIGN.md formaliza sem mudar
+- Não tem ROI até v1 estar live + 2º cliente entrar
+
+**Context:** Design review notou AI-slop blacklist hits #7 (emojis) e #11 (system font primary). Não bloqueia v1 (decisão consciente: não redesign agora). Mas pra v1.1+ vira dívida de identidade.
+
+**Effort estimate:** M (human ~2 dias) → CC+gstack ~3-4h  
+**Priority:** P3  
+**Depends on:** v1 live + decisão de redesign (provavelmente Gate 2: 3 clientes pagantes).
+
+---
+
+### TODO-7 — Auditar `rpc_admin_criar_usuario` exposta a anon (P2)
+
+**What:** Função RPC `rpc_admin_criar_usuario(p_email, p_password)` está GRANTed para o role `anon` no schema dump (Item 0a, linha ~1108 da migration 0000). Anon pode chamar = qualquer não-autenticado pode criar usuários em `auth.users`. Provavelmente intencional pro signup flow, mas vale audit explícito.
+
+**Why:** Função SECURITY DEFINER + callable por anon = vetor potencial de abuse: spam de signup, criar empresas com dados de teste, exhaust auth quota do Supabase. Pra cliente B2B sério, "qualquer um cria conta" pode ser problema.
+
+**Pros:**
+- Audit reduz superfície de ataque pré-LOI go-live
+- Documenta decisão consciente vs estado herdado do protótipo
+
+**Cons:**
+- Pode ser intencional e correto (default Supabase Auth signup pattern)
+- Audit em si não conserta nada se a função for legítima
+
+**Context:** Discovery durante check de segurança do dump (Item 0a). Função aparece no schema mas eng review original não auditou explicitamente. Provavelmente parte do fluxo `js/supabase.js initAuth()`. Verificar:
+
+1. A função tem WHERE/CHECK no body que limita criação? (ex: max N users por IP/empresa?)
+2. Supabase Auth rate limit default está suficiente?
+3. CAPTCHA habilitado no dashboard Supabase?
+4. Vale revogar GRANT TO anon e mover signup pra Edge Function com lógica custom?
+
+**Effort estimate:** S (human ~2-3h leitura + decisão) → CC+gstack ~30min
+**Priority:** P2 (não bloqueia v1, mas audit antes do LOI go-live recomendado)
+**Depends on:** Nenhum — pode ser feito qualquer hora.
