@@ -11,3 +11,5 @@ Thumbs.db
 
 # Node (caso adicione dependencias no futuro)
 node_modules/
+.backups/
+*.bak
