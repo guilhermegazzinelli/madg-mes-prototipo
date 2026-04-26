@@ -20,7 +20,7 @@ O MADG MES coleta dados de produção no chão de fábrica e calcula automaticam
 | Deploy | Arquivos estáticos (Live Server, Vercel, Netlify) |
 | Dependências | Supabase JS v2 (CDN) |
 
-Zero build step. Abre o `index.html` e funciona.
+Zero build step. Abre o `public/index.html` e funciona.
 
 ## Funcionalidades
 
@@ -49,24 +49,26 @@ Zero build step. Abre o `index.html` e funciona.
 ## Estrutura
 
 ```
-├── index.html              SPA shell (header, sidebar, bottom nav, main)
-├── css/styles.css          Design system (variáveis, grid, componentes)
-├── js/
-│   ├── supabase.js         Conexão Supabase + auth + login/logout
-│   ├── router.js           Router hash-based (#/rota)
-│   ├── app.js              Bootstrap e registro de rotas
-│   ├── utils.js            Cálculos OEE, formatadores, consolidação
-│   ├── components.js       Tabela, modal, toast, gauge, select
-│   └── pages/
-│       ├── dashboard.js    Dashboard OEE com tendência
-│       ├── ordens.js       Lista de ordens + filtros
-│       ├── ordem-form.js   Formulário de apontamento
-│       ├── paradas.js      Detalhe de paradas por ordem
-│       ├── unidades.js     CRUD unidades
-│       ├── linhas.js       CRUD linhas
-│       ├── produtos.js     CRUD produtos
-│       ├── taxas.js        CRUD taxas de produção
-│       └── motivos.js      CRUD motivos de parada
+├── public/                 Diretório deployavel (Cloudflare Workers Assets)
+│   ├── index.html          SPA shell (header, sidebar, bottom nav, main)
+│   ├── css/styles.css      Design system (variáveis, grid, componentes)
+│   └── js/
+│       ├── supabase.js     Conexão Supabase + auth + login/logout
+│       ├── router.js       Router hash-based (#/rota)
+│       ├── app.js          Bootstrap e registro de rotas
+│       ├── utils.js        Cálculos OEE, formatadores, consolidação
+│       ├── components.js   Tabela, modal, toast, gauge, select
+│       └── pages/
+│           ├── dashboard.js    Dashboard OEE com tendência
+│           ├── ordens.js       Lista de ordens + filtros
+│           ├── ordem-form.js   Formulário de apontamento
+│           ├── paradas.js      Detalhe de paradas por ordem
+│           ├── unidades.js     CRUD unidades
+│           ├── linhas.js       CRUD linhas
+│           ├── produtos.js     CRUD produtos
+│           ├── taxas.js        CRUD taxas de produção
+│           └── motivos.js      CRUD motivos de parada
+├── wrangler.jsonc          Config CF Workers (assets-only, aponta pra public/)
 └── sql/
     ├── schema.sql          DDL completo (tabelas + RLS + policies)
     ├── seed.sql            Dados demo (Divinissimo + Metalúrgica)
@@ -84,7 +86,7 @@ Zero build step. Abre o `index.html` e funciona.
 4. (Opcional) Rode `sql/fix-rls-e-demos.sql` para mais empresas demo
 
 ### 2. Configurar
-Edite `js/supabase.js` com a URL e anon key do seu projeto:
+Edite `public/js/supabase.js` com a URL e anon key do seu projeto:
 ```js
 const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
 const SUPABASE_KEY = 'eyJ...SUA-ANON-KEY...';
@@ -93,12 +95,12 @@ const SUPABASE_KEY = 'eyJ...SUA-ANON-KEY...';
 ### 3. Abrir
 ```bash
 # Opção 1: Python
-cd Prototipo && python3 -m http.server 8080
+python3 -m http.server 8080 --directory public
 
 # Opção 2: Node
-npx serve .
+npx serve public
 
-# Opção 3: VS Code Live Server
+# Opção 3: VS Code Live Server (apontar pra public/)
 ```
 Acesse http://localhost:8080
 
