@@ -127,12 +127,15 @@ Use o template `sql/nova-empresa.sql` — substitua os valores marcados e rode n
 - `npm run test:watch` — watch mode
 - Tests cross-tenant requerem `supabase start` + `supabase db reset` rodando local; skipam silently sem stack.
 
-### Playwright (E2E happy-path)
-- `npm run test:e2e` — abre browser headless, navega flows reais (login, cadastros, dashboard, admin)
+### Playwright (E2E happy-path + visual snapshots)
+- `npm run test:e2e` — abre browser headless, navega flows reais (login, cadastros, dashboard, admin) + valida snapshots pixel-exato
 - `npm run test:e2e:ui` — modo interativo pra debug
+- `npm run test:e2e -- snapshots --update-snapshots` — atualiza baselines apos mudanca intencional de UI
 - `npx playwright install chromium` (uma vez) baixa o browser binary.
 - Tests apontam pro Supabase **local** (override via `window.__SUPABASE_*_OVERRIDE` injetado por `addInitScript` em `test/e2e/fixtures/auth.js`). Producao em `public/js/supabase.js` continua hardcoded — zero impacto.
 - Skipam silently se Supabase local nao acessivel ou seed nao aplicado.
+
+**Snapshots:** 14 baselines em `test/e2e/snapshots.spec.js-snapshots/` cobrem login, dashboards, cadastros, ordens, admin. Baselines por OS (`-linux`/`-darwin`/`-win32`); repo versiona apenas `-linux` (Arch local + Ubuntu CI). Contributor em outro OS gera baseline próprio sem commitar.
 
 ## Cálculos OEE
 
