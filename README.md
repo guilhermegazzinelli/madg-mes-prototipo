@@ -118,7 +118,25 @@ VALUES ('UUID-AQUI', '00000000-0000-0000-0000-000000000001', 'admin');
 3. Faça login novamente
 
 ### 5. Criar nova empresa
-Use o template `sql/nova-empresa.sql` — substitua os valores marcados e rode no SQL Editor.
+
+**Caminho recomendado: importer Excel** (`scripts/import-loi.js`)
+
+Para onboarding de cliente novo, prepare um arquivo `.xlsx` seguindo a estrutura de `data/loi-sample.xlsx` (8 sheets: empresa, unidades, linhas, produtos, taxas, motivos, turnos, user). Depois:
+
+```bash
+export SUPABASE_URL=https://SEU-PROJETO.supabase.co
+export SUPABASE_SERVICE_KEY=eyJ...sua-service-role-key...
+
+node scripts/import-loi.js cliente-novo.xlsx --dry-run    # valida sem inserir
+node scripts/import-loi.js cliente-novo.xlsx              # importa de fato
+node scripts/import-loi.js cliente-novo.xlsx --replace    # apaga e re-importa
+```
+
+**Two-phase**: valida TUDO primeiro (relatório com TODOS os erros de uma vez), depois INSERT em ordem topológica. Falha mid-INSERT dispara auto-cleanup (delete cascade da empresa parcial).
+
+**Caminho legacy: SQL template** (`sql/nova-empresa.sql`)
+
+Manualmente substitui os valores `<<placeholders>>` e roda no SQL Editor. Mantido como fallback se Excel não couber.
 
 ## Tests
 
