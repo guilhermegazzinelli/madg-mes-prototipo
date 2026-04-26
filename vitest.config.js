@@ -13,7 +13,7 @@
 export default {
   test: {
     include: ['test/**/*.{test,spec}.{js,mjs,ts}'],
-    exclude: ['node_modules', 'dist', '.git'],
+    exclude: ['node_modules', 'dist', '.git', 'test/e2e/**'],
     reporters: ['default'],
     // Sem coverage por padrão — habilitar via `npm run test:coverage`
 

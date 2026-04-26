@@ -35,6 +35,27 @@ Helper isSupabaseRunning() endurecido — probe duplo (auth health + REST contra
 
 vitest.config.js: `fileParallelism: false` pra evitar race entre arquivos super-admin (todos compartilham 1 super-admin user no seed).
 
+### Item 1d — Playwright happy-path E2E
+
+**Status: DONE** (2026-04-26, branch `feature/playwright-e2e`)
+
+@playwright/test 1.59 + Chromium binary local. 24 cases em 5 arquivos cobrindo 9 paginas: auth flow (login/logout, sidebar role-based), cadastros (unidades/linhas/produtos/motivos full CRUD via modal, taxas list-only), dashboard OEE + paradas (filtros + render), ordens (lista + new form), admin/* (super-admin only routes).
+
+Pattern: `public/js/supabase.js` ganhou hook `window.__SUPABASE_URL_OVERRIDE` / `__KEY_OVERRIDE`; testes injetam local Supabase (Docker) via `addInitScript` em `test/e2e/fixtures/auth.js`. Zero impacto em runtime de prod (mantem hardcoded URL como default).
+
+Helpers compartilhados em `test/e2e/helpers.js`: navigateTo (sidebar click + spinner wait), waitModalOpen, saveModal (state-based, evita race de toast), createCadastro (DRY pra cadastros simples), deleteFirstRowMatching (confirma row sumiu apos UI.confirm).
+
+Fixtures em `test/e2e/fixtures/auth.js`: `pageWithLocalSupabase`, `pageAsDivinissimo` (regular user), `pageAsSuperAdmin`. isSupabaseRunningAndSeeded probe duplo (auth health + REST com service_role).
+
+`npm run test:e2e` (8080 server auto-spawned) ou `npm run test:e2e:ui` (debug interativo).
+
+Local: 24/24 verde em 12.3s. CI nao roda Playwright (sem Supabase local) — vitest skipa cross-tenant E playwright skipa via probe duplo.
+
+**Coberturas DEFERRED (TODO-5 ou follow-ups):**
+- Ordem-form submissao COMPLETA (form pesado: 3 selects cascading, varios timing fields, tabela inline de paradas). Hoje testa render + cascading dropdown.
+- Taxas full CRUD (UNIQUE constraint em (produto_id, linha_id) ocupa todos combos do seed; precisa fixture builder).
+- Visual snapshots (`toHaveScreenshot()`) — escopo do TODO-5 que agora esta desbloqueado.
+
 ---
 
 ## P2 (importante, mas não bloqueia v1)
@@ -174,25 +195,37 @@ Coisas que **NÃO** vão pra TODOS porque já estão no design doc como decisõe
 
 ### TODO-5 — Habilitar Playwright `toHaveScreenshot()` no Item 1d (P2)
 
-**What:** Item 1d (Playwright happy-path tests) já cobre 11 CRUDs funcionalmente. Adicionar snapshot mode (`toHaveScreenshot()`) em cada spec pra capturar baseline visual ANTES do D7 refactor e validar pixel-diff DEPOIS.
+**Status: UNBLOCKED** (2026-04-26 — Item 1d concluido, pode prosseguir)
 
-**Why:** D7 CRUD refactor extrai 11 páginas para `js/crud.js` helper. Risco máximo é regressão visual sub-pixel (espaçamentos, tamanhos, ordem de elementos) que passam funcional mas mudam UX. Snapshot mode pega isso automaticamente.
+**What:** Item 1d agora cobre 9 paginas funcionalmente em 24 cases (test/e2e/*.spec.js). Adicionar snapshot mode (`toHaveScreenshot()`) em cada spec pra capturar baseline visual ANTES de qualquer refactor de CRUD e validar pixel-diff DEPOIS.
+
+**Why:** Refactor de CRUD que extrai paginas para helper compartilhado tem risco maximo de regressao visual sub-pixel (espacamentos, tamanhos, ordem de elementos) que passam funcional mas mudam UX. Snapshot mode pega isso automaticamente.
 
 **Pros:**
 - Detecta visual regression que humano não pega em 2-3h de smoke
 - Threshold padrão 0.2% pixel-diff é razoável
-- Snapshots ficam versionados em `Prototipo/test/__snapshots__/`
+- Snapshots ficam versionados em `test/e2e/__snapshots__/`
 
 **Cons:**
 - +1-2h CC para configurar (precisa baseline ANTES do refactor)
 - Snapshots quebram se design system mudar (mas isso é feature, não bug)
 - Aumenta CI time em ~30s por spec
+- Cross-platform: snapshot capturado em Arch Linux pode diferir levemente de Mac/Windows. Solucao padrao: containerizar via Docker pra snapshots determinist-cos.
 
-**Context:** Item 1d original foi adicionado pelo OV1 da eng review. Snapshot mode é refinamento natural pra cobrir o caso de "pixel mudou mesmo dom funcionando."
+**Implementation hint:**
+Cada `*.spec.js` ganha um par de cases adicional:
+```js
+test('visual: dashboard OEE baseline', async ({ pageAsDivinissimo: page }) => {
+  await navigateTo(page, '#/dashboard');
+  await expect(page).toHaveScreenshot('dashboard.png', { maxDiffPixels: 100 });
+});
+```
+
+Se snapshots nao existem, `--update-snapshots` cria. Reviews de PR validam snapshots existentes.
 
 **Effort estimate:** S (human ~3h) → CC+gstack ~1-2h  
 **Priority:** P2  
-**Depends on:** Item 1d implementado (Playwright suite criada).
+**Depends on:** ~~Item 1d implementado~~ ✓ DONE.
 
 ---
 
