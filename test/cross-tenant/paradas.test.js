@@ -5,9 +5,11 @@
 //     (SELECT id FROM ordens_producao WHERE unidade_id IN
 //        (SELECT id FROM unidades WHERE empresa_id = auth_empresa_id()))
 //
-// IMPORTANTE: paradas NAO tem policy UPDATE no schema (3 policies apenas:
-// SELECT, INSERT, DELETE). UPDATE direto = silent (sem policy = bloqueado
-// pelo FORCE RLS).
+// DESIGN INTENCIONAL: paradas e' append-only.
+// Sem policy UPDATE no FORCE RLS = UPDATE direto retorna silent
+// (data: [], sem erro). Edicao = DELETE + INSERT, preservando audit trail.
+// Ver migration 0002_doc_paradas_append_only.sql + TODO-8 (RESOLVED).
+// public/js/pages/paradas.js confirma o fluxo: so' chama select/insert/delete.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
@@ -112,9 +114,10 @@ describe.skipIf(!supabaseRunning)('cross-tenant — paradas', () => {
     });
   });
 
-  describe('UPDATE', () => {
-    it('paradas NAO tem policy UPDATE — user A bloqueado mesmo na propria empresa (silent)', async () => {
+  describe('UPDATE (append-only by design)', () => {
+    it('append-only: user A NAO consegue UPDATE mesmo na propria empresa (silent, by design)', async () => {
       // Sem CREATE POLICY ... FOR UPDATE no schema, FORCE RLS bloqueia.
+      // INTENCIONAL: paradas sao append-only. Edicao = DELETE + INSERT.
       const since = new Date();
       const target = SEED_IDS.paradas.divinissimoAnchor;
       const { data, error } = await userA
@@ -139,7 +142,7 @@ describe.skipIf(!supabaseRunning)('cross-tenant — paradas', () => {
       expect(audit).toEqual([]);
     });
 
-    it('UPDATE cross-tenant em parada da empresa B tambem silent', async () => {
+    it('append-only: UPDATE cross-tenant em parada da empresa B tambem silent', async () => {
       const since = new Date();
       const target = SEED_IDS.paradas.colortechAnchor;
       const { data, error } = await userA

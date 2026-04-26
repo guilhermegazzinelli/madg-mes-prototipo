@@ -41,19 +41,21 @@ vitest.config.js: `fileParallelism: false` pra evitar race entre arquivos super-
 
 ### TODO-8 — Auditar ausência de policy UPDATE em `paradas` (P2)
 
-**What:** Schema 0000 declara 3 policies em `public.paradas`: SELECT, INSERT, DELETE. Sem UPDATE = bloqueado pelo FORCE RLS. Test `test/cross-tenant/paradas.test.js` confirma que UPDATE direto é silent até pra row da própria empresa.
+**Status: RESOLVED** (2026-04-26 — opcao (a) intencional, append-only by design)
 
-**Why:** Pode ser:
-- (a) **Intencional** — paradas são append-only, mudanças só via DELETE+INSERT
-- (b) **Hole** — esquecemos de declarar a policy quando a tabela foi criada
+**Veredicto:** É intencional, NÃO é hole. Três evidências:
 
-Cliente operador no LOI vai querer corrigir descrição de parada errada ("Quebra rolamento" quando era "Falta de material"). Hoje a UI provavelmente também não tem botão de editar parada — confirmar via grep em `js/pages/paradas.js`.
+1. **Histórico** — `sql/schema.sql` original (pre-Supabase CLI, commit `83d3c38` Apr 15) já declarava apenas 3 policies em paradas (linhas 257/262/267: select, insert, delete). Mesmo pattern desde o dia 1 — não é "esquecemos".
 
-**Decisão necessária:** se for (a) intencional, documentar em CLAUDE.md "paradas são append-only por design". Se (b) hole, adicionar policy UPDATE com mesma USING expression nested das outras.
+2. **UI confirma** — `public/js/pages/paradas.js` só chama `db.from('paradas').select(...)` (linha 11), `.delete().eq('id', ...)` (linha 74), `.insert(payload)` (linha 142). Nunca chama `.update()`. O botão "Salvar" (linha 111) aciona INSERT no submit do modal de criação.
 
-**Effort estimate:** S (human ~30min decisão + 15min impl) → CC+gstack ~15min
-**Priority:** P2 (não bloqueia v1 mas vai ser pergunta do operador)
-**Depends on:** Nenhum.
+3. **Fluxo do operador** — corrigir parada errada (motivo trocado, horário errado) = clicar lixeira na parada errada + criar nova com dados corretos. Audit trail registra ambos eventos no `audit_log` (DELETE da row antiga + INSERT da nova).
+
+**Implementação da resolução:**
+- `supabase/migrations/0002_doc_paradas_append_only.sql` — `COMMENT ON TABLE paradas` + `COMMENT ON POLICY` queryable via `\d+ paradas` (auto-documentação na própria DB)
+- `test/cross-tenant/paradas.test.js` — descrições dos casos UPDATE deixam "append-only by design" explícito (não "comportamento observado")
+
+**Completed:** 2026-04-26 (audit + 1 migration + 1 test description update).
 
 ---
 
