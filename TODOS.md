@@ -195,37 +195,27 @@ Coisas que **NÃO** vão pra TODOS porque já estão no design doc como decisõe
 
 ### TODO-5 — Habilitar Playwright `toHaveScreenshot()` no Item 1d (P2)
 
-**Status: UNBLOCKED** (2026-04-26 — Item 1d concluido, pode prosseguir)
+**Status: DONE** (2026-04-26 — branch `feature/playwright-snapshots`)
 
-**What:** Item 1d agora cobre 9 paginas funcionalmente em 24 cases (test/e2e/*.spec.js). Adicionar snapshot mode (`toHaveScreenshot()`) em cada spec pra capturar baseline visual ANTES de qualquer refactor de CRUD e validar pixel-diff DEPOIS.
+**O que foi entregue:**
+- `test/e2e/snapshots.spec.js` — 13 cases gerando 14 baselines (sidebar capturado isoladamente)
+- Coverage: 2 auth states, 9 paginas regular-user (dashboards/listas/form/modal), 3 admin
+- Baselines em `test/e2e/snapshots.spec.js-snapshots/` (~900KB total, 14 PNGs entre 23-105KB)
 
-**Why:** Refactor de CRUD que extrai paginas para helper compartilhado tem risco maximo de regressao visual sub-pixel (espacamentos, tamanhos, ordem de elementos) que passam funcional mas mudam UX. Snapshot mode pega isso automaticamente.
+**Robustez:**
+- `animations: 'disabled'` freeza CSS transitions
+- `mask: [...]` obscura inputs de data dinamicos (current date diff entre runs)
+- `waitForTimeout(1500)` apos navigate em paginas com ApexCharts pra render terminar
+- `maxDiffPixels: 100` tolera anti-aliasing diff entre runs (~0.01%)
 
-**Pros:**
-- Detecta visual regression que humano não pega em 2-3h de smoke
-- Threshold padrão 0.2% pixel-diff é razoável
-- Snapshots ficam versionados em `test/e2e/__snapshots__/`
+**Workflow:**
+- Apos mudanca intencional de UI: `npm run test:e2e -- snapshots --update-snapshots`
+- PRs futuros disparam diff-check automatico: regressao visual pixel-level vira CI fail
 
-**Cons:**
-- +1-2h CC para configurar (precisa baseline ANTES do refactor)
-- Snapshots quebram se design system mudar (mas isso é feature, não bug)
-- Aumenta CI time em ~30s por spec
-- Cross-platform: snapshot capturado em Arch Linux pode diferir levemente de Mac/Windows. Solucao padrao: containerizar via Docker pra snapshots determinist-cos.
+**Cross-platform:**
+- Snapshots por OS (`-linux`/`-darwin`/`-win32` suffix). Repo versiona apenas `-linux` (Arch local + Ubuntu CI). Contributor em outro OS deve gerar baseline próprio sem commitar.
 
-**Implementation hint:**
-Cada `*.spec.js` ganha um par de cases adicional:
-```js
-test('visual: dashboard OEE baseline', async ({ pageAsDivinissimo: page }) => {
-  await navigateTo(page, '#/dashboard');
-  await expect(page).toHaveScreenshot('dashboard.png', { maxDiffPixels: 100 });
-});
-```
-
-Se snapshots nao existem, `--update-snapshots` cria. Reviews de PR validam snapshots existentes.
-
-**Effort estimate:** S (human ~3h) → CC+gstack ~1-2h  
-**Priority:** P2  
-**Depends on:** ~~Item 1d implementado~~ ✓ DONE.
+**Local: 14/14 verde idempotente em ~12s. Full E2E: 38/38 verde em 23s (24 functional + 14 snapshots).**
 
 ---
 
