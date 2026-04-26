@@ -218,6 +218,7 @@ export async function getAuditSince(serviceClient, since, filter = {}) {
   if (filter.op)         query = query.eq('op', filter.op);
   if (filter.user_id)    query = query.eq('user_id', filter.user_id);
   if (filter.empresa_id) query = query.eq('empresa_id', filter.empresa_id);
+  if (filter.record_id)  query = query.eq('record_id', filter.record_id);
 
   const { data, error } = await query;
   if (error) throw new Error(`getAuditSince falhou: ${error.message}`);

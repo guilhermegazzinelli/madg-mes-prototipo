@@ -35,9 +35,9 @@ describe.skipIf(!supabaseRunning)('cross-tenant — empresa', () => {
     await userA?.auth.signOut();
   });
 
-  beforeEach(async () => {
-    await cleanAuditLog(serviceClient);
-  });
+  // Sem cleanAuditLog beforeEach: filtragem por record_id/tabela escopa
+  // cada case sem precisar limpar audit log global (que rebentaria
+  // tests rodando em paralelo de outros arquivos).
 
   // ------------------------------------------------------------
   // SELECT

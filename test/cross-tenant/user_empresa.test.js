@@ -37,9 +37,8 @@ describe.skipIf(!supabaseRunning)('cross-tenant — user_empresa', () => {
     await userA?.auth.signOut();
   });
 
-  beforeEach(async () => {
-    await cleanAuditLog(serviceClient);
-  });
+  // Sem cleanAuditLog beforeEach: filtragem por op+tabela+user_id
+  // escopa cada case sem rebentar paralelismo entre arquivos.
 
   describe('SELECT', () => {
     it('ground truth: service_role ve membership do user B (colortech)', async () => {
