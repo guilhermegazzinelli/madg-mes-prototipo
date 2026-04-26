@@ -10,10 +10,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const SCHEMA_PATH = resolve(process.cwd(), 'supabase/migrations/0000_initial_schema.sql');
-const SEED_PATH = resolve(process.cwd(), 'supabase/seed.sql');
+const AUDIT_PATH  = resolve(process.cwd(), 'supabase/migrations/0001_audit_log.sql');
+const SEED_PATH   = resolve(process.cwd(), 'supabase/seed.sql');
 
 const schema = readFileSync(SCHEMA_PATH, 'utf-8');
-const seed = readFileSync(SEED_PATH, 'utf-8');
+const audit  = readFileSync(AUDIT_PATH,  'utf-8');
+const seed   = readFileSync(SEED_PATH,   'utf-8');
 
 describe('Schema migration — tabelas operacionais', () => {
   // Lista derivada do design doc + super-admin schema.
@@ -38,8 +40,62 @@ describe('Schema migration — tabelas operacionais', () => {
     expect(schema).toMatch(re);
   });
 
-  it('tem exatamente 12 tabelas no schema public', () => {
+  it('tem exatamente 12 tabelas no schema public (initial migration)', () => {
     const matches = schema.match(/^CREATE TABLE\s+(IF NOT EXISTS\s+)?"public"\."[^"]+"/gm) || [];
+    expect(matches.length).toBe(12);
+  });
+});
+
+describe('Migration 0001 — audit_log infrastructure', () => {
+  // 0001_audit_log adiciona trilha de auditoria com triggers AFTER em todas
+  // as 12 tabelas mutáveis + acted_as_super_admin pra rastrear impersonacao.
+
+  const TABELAS_AUDITADAS = [
+    'empresa',
+    'linhas',
+    'motivos_parada',
+    'ordens_producao',
+    'paradas',
+    'produtos',
+    'super_admin_context',
+    'super_admins',
+    'taxas_producao',
+    'turnos',
+    'unidades',
+    'user_empresa',
+  ];
+
+  it('cria tabela public.audit_log', () => {
+    expect(audit).toMatch(/CREATE\s+TABLE\s+(IF NOT EXISTS\s+)?public\.audit_log/i);
+  });
+
+  it('audit_log tem coluna acted_as_super_admin (rastreio de impersonacao)', () => {
+    expect(audit).toMatch(/acted_as_super_admin\s+boolean/i);
+  });
+
+  it('audit_log forca FORCE ROW LEVEL SECURITY (não basta ENABLE)', () => {
+    expect(audit).toMatch(/audit_log\s+FORCE\s+ROW\s+LEVEL\s+SECURITY/i);
+  });
+
+  it('audit_log permite SELECT mas bloqueia INSERT/UPDATE/DELETE direto', () => {
+    // Apenas a function log_audit (SECURITY DEFINER) deve escrever.
+    // Só esperamos UMA policy: audit_log_select.
+    const policies = audit.match(/CREATE POLICY\s+\w+\s+ON\s+public\.audit_log/g) || [];
+    expect(policies.length).toBe(1);
+    expect(audit).toMatch(/CREATE POLICY\s+audit_log_select/);
+  });
+
+  it('function log_audit é SECURITY DEFINER (bypassa RLS pra escrever)', () => {
+    expect(audit).toMatch(/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.log_audit[\s\S]*?SECURITY\s+DEFINER/i);
+  });
+
+  it.each(TABELAS_AUDITADAS)('trigger trg_audit_%s instalado', (tabela) => {
+    const re = new RegExp(`CREATE TRIGGER trg_audit_${tabela}\\s+AFTER`, 'i');
+    expect(audit).toMatch(re);
+  });
+
+  it('cobre 12 tabelas mutáveis (1 trigger por tabela)', () => {
+    const matches = audit.match(/CREATE TRIGGER\s+trg_audit_\w+/g) || [];
     expect(matches.length).toBe(12);
   });
 });
