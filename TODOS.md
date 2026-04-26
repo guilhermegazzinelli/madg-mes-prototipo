@@ -165,3 +165,30 @@ Coisas que **NÃO** vão pra TODOS porque já estão no design doc como decisõe
 **Effort estimate:** M (human ~2 dias) → CC+gstack ~3-4h  
 **Priority:** P3  
 **Depends on:** v1 live + decisão de redesign (provavelmente Gate 2: 3 clientes pagantes).
+
+---
+
+### TODO-7 — Auditar `rpc_admin_criar_usuario` exposta a anon (P2)
+
+**What:** Função RPC `rpc_admin_criar_usuario(p_email, p_password)` está GRANTed para o role `anon` no schema dump (Item 0a, linha ~1108 da migration 0000). Anon pode chamar = qualquer não-autenticado pode criar usuários em `auth.users`. Provavelmente intencional pro signup flow, mas vale audit explícito.
+
+**Why:** Função SECURITY DEFINER + callable por anon = vetor potencial de abuse: spam de signup, criar empresas com dados de teste, exhaust auth quota do Supabase. Pra cliente B2B sério, "qualquer um cria conta" pode ser problema.
+
+**Pros:**
+- Audit reduz superfície de ataque pré-LOI go-live
+- Documenta decisão consciente vs estado herdado do protótipo
+
+**Cons:**
+- Pode ser intencional e correto (default Supabase Auth signup pattern)
+- Audit em si não conserta nada se a função for legítima
+
+**Context:** Discovery durante check de segurança do dump (Item 0a). Função aparece no schema mas eng review original não auditou explicitamente. Provavelmente parte do fluxo `js/supabase.js initAuth()`. Verificar:
+
+1. A função tem WHERE/CHECK no body que limita criação? (ex: max N users por IP/empresa?)
+2. Supabase Auth rate limit default está suficiente?
+3. CAPTCHA habilitado no dashboard Supabase?
+4. Vale revogar GRANT TO anon e mover signup pra Edge Function com lógica custom?
+
+**Effort estimate:** S (human ~2-3h leitura + decisão) → CC+gstack ~30min
+**Priority:** P2 (não bloqueia v1, mas audit antes do LOI go-live recomendado)
+**Depends on:** Nenhum — pode ser feito qualquer hora.
