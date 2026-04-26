@@ -1,8 +1,11 @@
 // MADG MES — Supabase Client + Auth
 // Substituir pelos valores do seu projeto Supabase
 
-const SUPABASE_URL = 'https://twitebntywrlvtsigonb.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aXRlYm50eXdybHZ0c2lnb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjY3NDAsImV4cCI6MjA5MTg0Mjc0MH0.v-Sfh75MayzkHISUvJvUCN477dGDkdKu2DW-uvIsGcM';
+// Defaults aponta pra producao. Playwright e testes E2E injetam
+// window.__SUPABASE_URL_OVERRIDE / __KEY_OVERRIDE via addInitScript
+// pra apontar pro Supabase local (Docker) sem mexer no codigo prod.
+const SUPABASE_URL = window.__SUPABASE_URL_OVERRIDE || 'https://twitebntywrlvtsigonb.supabase.co';
+const SUPABASE_KEY = window.__SUPABASE_KEY_OVERRIDE || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3aXRlYm50eXdybHZ0c2lnb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNjY3NDAsImV4cCI6MjA5MTg0Mjc0MH0.v-Sfh75MayzkHISUvJvUCN477dGDkdKu2DW-uvIsGcM';
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
