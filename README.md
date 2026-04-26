@@ -120,6 +120,20 @@ VALUES ('UUID-AQUI', '00000000-0000-0000-0000-000000000001', 'admin');
 ### 5. Criar nova empresa
 Use o template `sql/nova-empresa.sql` — substitua os valores marcados e rode no SQL Editor.
 
+## Tests
+
+### Vitest (unit + integration)
+- `npm test` — schema invariants + cross-tenant RLS (~146 cases)
+- `npm run test:watch` — watch mode
+- Tests cross-tenant requerem `supabase start` + `supabase db reset` rodando local; skipam silently sem stack.
+
+### Playwright (E2E happy-path)
+- `npm run test:e2e` — abre browser headless, navega flows reais (login, cadastros, dashboard, admin)
+- `npm run test:e2e:ui` — modo interativo pra debug
+- `npx playwright install chromium` (uma vez) baixa o browser binary.
+- Tests apontam pro Supabase **local** (override via `window.__SUPABASE_*_OVERRIDE` injetado por `addInitScript` em `test/e2e/fixtures/auth.js`). Producao em `public/js/supabase.js` continua hardcoded — zero impacto.
+- Skipam silently se Supabase local nao acessivel ou seed nao aplicado.
+
 ## Cálculos OEE
 
 ```
