@@ -493,6 +493,87 @@ WHERE o.unidade_id = '10000000-0000-0000-0000-000000000001'
 LIMIT 1;
 
 -- ============================================================
+-- PARTE 7: TEST FIXTURES (UUIDs estaveis pra cross-tenant tests)
+-- ============================================================
+-- Tabelas com PK auto-gerada (taxas/turnos/ordens/paradas) ganham UUIDs
+-- estaveis em UMA row anchor por empresa-A (divinissimo) e empresa-B
+-- (colortech). Permite hardcode em SEED_IDS sem query-by-criteria nos tests.
+--
+-- Convencao de prefixo:
+--   50000000-... = taxas_producao
+--   60000000-... = turnos
+--   70000000-... = ordens_producao
+--   80000000-... = paradas
+--
+-- Suffix .0001 = divinissimo (empresa A), .0030 = colortech (empresa B).
+--
+-- UPDATE em vez de INSERT separado: nao gera row duplicada, preserva
+-- demo data limpa, FK nao rebenta porque (a) taxas nao tem referenciador,
+-- (b) turnos.id nao e' usado (ordens.turno_id e' NULL no seed inteiro),
+-- (c) as ordens-anchor escolhidas (data='2026-04-01') tem tempo_parada=0,
+-- nenhuma parada do seed as referencia.
+
+-- Taxa anchor — divinissimo (PDQ Hora do Forno em Linha Unica)
+UPDATE taxas_producao SET id = '50000000-0000-0000-0000-000000000001'
+ WHERE produto_id = '30000000-0000-0000-0000-000000000001'
+   AND linha_id   = '20000000-0000-0000-0000-000000000001';
+
+-- Taxa anchor — colortech (Pigmento Azul em Moinho M-01)
+UPDATE taxas_producao SET id = '50000000-0000-0000-0000-000000000030'
+ WHERE produto_id = '30000000-0000-0000-0000-000000000030'
+   AND linha_id   = '20000000-0000-0000-0000-000000000033';
+
+-- Turno anchor — divinissimo (Comercial em PDQ)
+UPDATE turnos SET id = '60000000-0000-0000-0000-000000000001'
+ WHERE unidade_id = '10000000-0000-0000-0000-000000000001'
+   AND nome       = 'Comercial';
+
+-- Turno anchor — colortech (1o Turno em Dispersao)
+UPDATE turnos SET id = '60000000-0000-0000-0000-000000000030'
+ WHERE unidade_id  = '10000000-0000-0000-0000-000000000030'
+   AND nome        = '1o Turno'
+   AND hora_inicio = '06:00';
+
+-- Ordem anchor — divinissimo (1o ordem PDQ 2026-04-01, tempo_parada=0, sem paradas)
+UPDATE ordens_producao SET id = '70000000-0000-0000-0000-000000000001'
+ WHERE unidade_id = '10000000-0000-0000-0000-000000000001'
+   AND linha_id   = '20000000-0000-0000-0000-000000000001'
+   AND data       = '2026-04-01';
+
+-- Ordem anchor — colortech (1o ordem dispersor 2026-04-01)
+UPDATE ordens_producao SET id = '70000000-0000-0000-0000-000000000030'
+ WHERE unidade_id = '10000000-0000-0000-0000-000000000031'
+   AND linha_id   = '20000000-0000-0000-0000-000000000033'
+   AND data       = '2026-04-01';
+
+-- Parada anchor — divinissimo (UPDATE da 1a parada existente do seed)
+UPDATE paradas SET id = '80000000-0000-0000-0000-000000000001'
+ WHERE descricao = 'Parada de 10min — quebra rolamento esteira';
+
+-- Parada anchor — colortech (INSERT — colortech nao tem paradas no seed base)
+INSERT INTO paradas (id, ordem_id, linha_id, hora_inicio, hora_fim, motivo_id, descricao)
+SELECT
+  '80000000-0000-0000-0000-000000000030',
+  '70000000-0000-0000-0000-000000000030',  -- ordem anchor da colortech (definida acima)
+  '20000000-0000-0000-0000-000000000033',  -- Moinho M-01
+  '08:00'::time,
+  '08:15'::time,
+  m.id,
+  'Test fixture parada colortech (cross-tenant tests)'
+FROM motivos_parada m
+WHERE m.empresa_id = '00000000-0000-0000-0000-000000000003'
+LIMIT 1;
+
+-- ============================================================
+-- PARTE 8: CLEAN AUDIT LOG (zerado pra tests comecarem do zero)
+-- ============================================================
+-- Triggers de audit_log dispararam em CADA insert/update do seed.
+-- Tests cross-tenant precisam de audit_log vazio pra contar quantos
+-- rows uma operacao gera. TRUNCATE final zera sem afetar demo data.
+
+TRUNCATE TABLE audit_log RESTART IDENTITY;
+
+-- ============================================================
 -- FIM DO SEED
 -- ============================================================
 -- Verificacao rapida pos-aplicacao:

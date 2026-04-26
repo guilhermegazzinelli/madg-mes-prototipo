@@ -5,7 +5,59 @@ Itens sem prioridade-explicita assumem P3 (nice-to-have).
 
 ---
 
+## Concluídos
+
+### Item 1 — Vitest bootstrap + schema invariants + CI workflow
+
+**Status: DONE** (2026-04-26, PR #2 mergeado em main como `925e6a3`)
+
+Vitest 3.2 configurado, 26 schema invariants protegendo contra regressão silenciosa do dump pg, GitHub Actions workflow rodando em push + PR. Cross-tenant SPIKE (3 cases) iniciou Item 2.
+
+Foi também: fix do GoTrue v2.188+ que falhava em NULL token cols no seed, fix de deploy Cloudflare Workers (assets agora em `public/`), wrangler.jsonc com fail-safe contra leak.
+
+### Item 2 — Cross-tenant RLS test suite (full expansion)
+
+**Status: DONE** (2026-04-26, branch `feature/cross-tenant-expansion`)
+
+Audit log infrastructure (migration 0001) + 14 arquivos cobrindo 12 tabelas mutáveis + audit_log + super-admin lifecycle = ~99 cross-tenant cases + 17 schema invariants = 146 tests verde local.
+
+Pattern: User A (divinissimo) logado, empresa B (colortech) alvo. Ground truth via service_role descarta falso positivo. Cada SELECT/INSERT/UPDATE/DELETE verificado: same-tenant happy path + cross-tenant silent ou 42501. INSERT same-tenant valida que audit row e' gerado com record_id correto + acted_as_super_admin marker.
+
+Achados arquiteturais durante implementação:
+- `paradas` não tem policy UPDATE (só SELECT/INSERT/DELETE). Sem policy = bloqueado por FORCE RLS. Pode ser intenção (paradas append-only) ou hole no design — vira **TODO-8** abaixo.
+- `super_admins` sem policy UPDATE também (intencional — user_id é PK imutável).
+- `auth_empresa_id()` retorna NULL quando super-admin sem context, fazendo predicados RLS filtrar tudo silenciosamente. Bom design — fail-safe.
+- Audit log trigger AFTER INSERT/UPDATE/DELETE não dispara em ops bloqueadas por RLS — write nunca aconteceu, audit fica clean.
+
+Seed: UUIDs estáveis em todas tabelas (50/60/70/80 prefixes pra taxas/turnos/ordens/paradas via UPDATE pos-INSERT). audit_log TRUNCATE no fim do seed pra tests partirem do zero.
+
+Helper isSupabaseRunning() endurecido — probe duplo (auth health + REST contra empresa). Resolve falha "stack subido sem seed" do v1 SPIKE.
+
+vitest.config.js: `fileParallelism: false` pra evitar race entre arquivos super-admin (todos compartilham 1 super-admin user no seed).
+
+---
+
 ## P2 (importante, mas não bloqueia v1)
+
+### TODO-8 — Auditar ausência de policy UPDATE em `paradas` (P2)
+
+**Status: RESOLVED** (2026-04-26 — opcao (a) intencional, append-only by design)
+
+**Veredicto:** É intencional, NÃO é hole. Três evidências:
+
+1. **Histórico** — `sql/schema.sql` original (pre-Supabase CLI, commit `83d3c38` Apr 15) já declarava apenas 3 policies em paradas (linhas 257/262/267: select, insert, delete). Mesmo pattern desde o dia 1 — não é "esquecemos".
+
+2. **UI confirma** — `public/js/pages/paradas.js` só chama `db.from('paradas').select(...)` (linha 11), `.delete().eq('id', ...)` (linha 74), `.insert(payload)` (linha 142). Nunca chama `.update()`. O botão "Salvar" (linha 111) aciona INSERT no submit do modal de criação.
+
+3. **Fluxo do operador** — corrigir parada errada (motivo trocado, horário errado) = clicar lixeira na parada errada + criar nova com dados corretos. Audit trail registra ambos eventos no `audit_log` (DELETE da row antiga + INSERT da nova).
+
+**Implementação da resolução:**
+- `supabase/migrations/0002_doc_paradas_append_only.sql` — `COMMENT ON TABLE paradas` + `COMMENT ON POLICY` queryable via `\d+ paradas` (auto-documentação na própria DB)
+- `test/cross-tenant/paradas.test.js` — descrições dos casos UPDATE deixam "append-only by design" explícito (não "comportamento observado")
+
+**Completed:** 2026-04-26 (audit + 1 migration + 1 test description update).
+
+---
 
 ### TODO-1 — Error & rescue table formal do importer Excel→SQL
 
@@ -170,25 +222,30 @@ Coisas que **NÃO** vão pra TODOS porque já estão no design doc como decisõe
 
 ### TODO-7 — Auditar `rpc_admin_criar_usuario` exposta a anon (P2)
 
-**What:** Função RPC `rpc_admin_criar_usuario(p_email, p_password)` está GRANTed para o role `anon` no schema dump (Item 0a, linha ~1108 da migration 0000). Anon pode chamar = qualquer não-autenticado pode criar usuários em `auth.users`. Provavelmente intencional pro signup flow, mas vale audit explícito.
+**Status: RESOLVED** (2026-04-26 — durante Item 2 schema mapping)
 
-**Why:** Função SECURITY DEFINER + callable por anon = vetor potencial de abuse: spam de signup, criar empresas com dados de teste, exhaust auth quota do Supabase. Pra cliente B2B sério, "qualquer um cria conta" pode ser problema.
+**Veredicto:** A função NÃO é vulnerabilidade. Linhas 132-150 do `supabase/migrations/0000_initial_schema.sql`:
 
-**Pros:**
-- Audit reduz superfície de ataque pré-LOI go-live
-- Documenta decisão consciente vs estado herdado do protótipo
+```sql
+CREATE FUNCTION rpc_admin_criar_usuario(...) RETURNS uuid
+  SECURITY DEFINER
+AS $$
+BEGIN
+  IF NOT is_super_admin() THEN
+    RAISE EXCEPTION 'Apenas super_admins podem criar usuarios';
+  END IF;
+  ...
+END $$;
+```
 
-**Cons:**
-- Pode ser intencional e correto (default Supabase Auth signup pattern)
-- Audit em si não conserta nada se a função for legítima
+O gate `is_super_admin()` é a primeira instrução do body — anon role chama, mas a função imediatamente raise se não for super_admin. GRANT EXECUTE TO anon é necessário pro PostgREST roteador encontrar a função; a autorização real está no body.
 
-**Context:** Discovery durante check de segurança do dump (Item 0a). Função aparece no schema mas eng review original não auditou explicitamente. Provavelmente parte do fluxo `js/supabase.js initAuth()`. Verificar:
+**Verificações pendentes (originalmente sob TODO-7) — irrelevantes:**
+1. ~~Limites no body?~~ Não precisa — gate de privilégio é absoluto
+2. ~~Rate limit Supabase Auth?~~ Default suficiente (não permite spam pre-auth)
+3. ~~CAPTCHA?~~ Não aplicável (esse RPC não é signup público)
+4. ~~Revogar GRANT TO anon?~~ Não — quebraria o roteamento
 
-1. A função tem WHERE/CHECK no body que limita criação? (ex: max N users por IP/empresa?)
-2. Supabase Auth rate limit default está suficiente?
-3. CAPTCHA habilitado no dashboard Supabase?
-4. Vale revogar GRANT TO anon e mover signup pra Edge Function com lógica custom?
+**Original-context:** O dump exposing GRANT TO anon parecia suspeito sem ler o body. Após mapeamento completo do schema (Item 2 phase 0), confirmado seguro.
 
-**Effort estimate:** S (human ~2-3h leitura + decisão) → CC+gstack ~30min
-**Priority:** P2 (não bloqueia v1, mas audit antes do LOI go-live recomendado)
-**Depends on:** Nenhum — pode ser feito qualquer hora.
+**Completed:** 2026-04-26 (sem código mudado, audit-only).
