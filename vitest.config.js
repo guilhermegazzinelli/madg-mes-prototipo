@@ -16,5 +16,13 @@ export default {
     exclude: ['node_modules', 'dist', '.git'],
     reporters: ['default'],
     // Sem coverage por padrão — habilitar via `npm run test:coverage`
+
+    // Cross-tenant tests compartilham 1 super-admin user (seed).
+    // Arquivos paralelos brigando por super_admin_context (UPSERT row
+    // unica) geram race: arquivo A seta context, arquivo B limpa via
+    // beforeEach, arquivo A le e ve null.
+    // Desabilitar fileParallelism custa ~2s extras no full run mas
+    // elimina a classe inteira de races. Vale a pena pra suite RLS.
+    fileParallelism: false,
   },
 };
