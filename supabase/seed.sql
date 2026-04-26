@@ -116,6 +116,22 @@ BEGIN
           'super@madg.local', 'email',
           '{"sub":"aa000000-0000-0000-0000-000000000099","email":"super@madg.local"}'::jsonb,
           NOW(), NOW(), NOW());
+
+  -- GoTrue v2.188+ falha em "Database error querying schema" se token cols sao
+  -- NULL (Scan error: converting NULL to string is unsupported). O schema deixa
+  -- 4 colunas sem DEFAULT — for-amos '' aqui pra todos os seeds.
+  UPDATE auth.users SET
+    confirmation_token     = COALESCE(confirmation_token,     ''),
+    recovery_token         = COALESCE(recovery_token,         ''),
+    email_change_token_new = COALESCE(email_change_token_new, ''),
+    email_change           = COALESCE(email_change,           '')
+  WHERE id IN (
+    'aa000000-0000-0000-0000-000000000001',
+    'aa000000-0000-0000-0000-000000000002',
+    'aa000000-0000-0000-0000-000000000003',
+    'aa000000-0000-0000-0000-000000000004',
+    'aa000000-0000-0000-0000-000000000099'
+  );
 END $$;
 
 -- ============================================================
